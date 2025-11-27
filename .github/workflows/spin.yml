@@ -1,0 +1,15 @@
+name: Keep Render Alive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # Runs every 10 minutes
+  workflow_dispatch:        # Allows manual trigger
+
+jobs:
+  ping-server:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call backend keep-alive endpoint
+        run: |
+          curl -s https://image-saver-h999.onrender.com/ > /dev/null
