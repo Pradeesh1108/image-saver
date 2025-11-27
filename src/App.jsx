@@ -1,32 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Download, Instagram, Loader, AlertCircle, CheckCircle } from 'lucide-react';
 
-const NGROK_API = "https://3dc3e97f5453.ngrok-free.app"; // Update this if your ngrok URL changes
+const NGROK_API = "http://localhost:8000"; // Use localhost for local development
+// const NGROK_API = "https://c54e634b3c56.ngrok-free.app"; // Uncomment for ngrok usage
 
 // Fetch Instagram images from backend
 const fetchInstagramImages = async (postUrl) => {
   const response = await fetch(`${NGROK_API}/download`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true"
+    },
     body: JSON.stringify({ url: postUrl }),
   });
-  
+
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
-  
+
   const data = await response.json();
   if (!data.success) {
     throw new Error(data.error || "Failed to fetch images");
   }
-  
+
   console.log("Backend returned URLs:", data.media);
   const images = data.media.map((url, idx) => ({
     id: idx + 1,
     url,
     alt: `Instagram image ${idx + 1}`,
-    loading: true,
-    error: false,
   }));
   return images;
 };
@@ -39,11 +41,125 @@ const Toast = ({ message, type, onClose }) => {
   }, [onClose]);
 
   return (
-    <div className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg flex items-center gap-2 z-50 animate-slide-in ${
-      type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-    }`}>
+    <div className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg flex items-center gap-2 z-50 animate-slide-in ${type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+      }`}>
       {type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
       <span>{message}</span>
+    </div>
+  );
+};
+
+// Component to handle individual image fetching and display
+const InstagramImage = ({ url, alt, id, onDownload }) => {
+  const [imageUrl, setImageUrl] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let objectUrl = null;
+    let mounted = true;
+
+    const fetchImage = async () => {
+      try {
+        setLoading(true);
+        setError(false);
+
+        const proxyUrl = `${NGROK_API}/proxy-image?url=${encodeURIComponent(url)}`;
+        console.log(`Fetching image ${id} from proxy:`, proxyUrl);
+
+        const response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error('Failed to fetch image');
+
+        const blob = await response.blob();
+        if (mounted) {
+          objectUrl = URL.createObjectURL(blob);
+          setImageUrl(objectUrl);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error(`Error loading image ${id}:`, err);
+        if (mounted) {
+          setError(true);
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchImage();
+
+    return () => {
+      mounted = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [url, id]);
+
+  return (
+    <div className="relative group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+      <div className="aspect-square overflow-hidden bg-gray-100">
+        {loading && (
+          <div className="w-full h-full flex items-center justify-center">
+            <Loader className="animate-spin text-blue-500" size={32} />
+          </div>
+        )}
+
+        {error && (
+          <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-500">
+            <div className="text-center p-4">
+              <AlertCircle size={48} />
+              <p className="mt-2 text-sm font-medium">Image not accessible</p>
+              <p className="text-xs mt-1">Try downloading directly</p>
+              <button
+                onClick={() => onDownload(url, id)}
+                className="mt-3 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs"
+              >
+                Download
+              </button>
+            </div>
+          </div>
+        )}
+
+        {imageUrl && !loading && !error && (
+          <img
+            src={imageUrl}
+            alt={alt}
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          />
+        )}
+      </div>
+
+      {/* Download Button Overlay */}
+      <button
+        onClick={() => onDownload(url, id)}
+        disabled={error}
+        className={`absolute top-3 right-3 bg-black/70 hover:bg-black/90 text-white p-3 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-y-2 group-hover:translate-y-0 shadow-lg hover:scale-110 ${error ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+        title={error ? "Cannot download - image failed to load" : "Download image"}
+      >
+        <Download size={20} />
+      </button>
+
+      {/* Copy URL Button for failed images */}
+      {error && (
+        <button
+          onClick={() => {
+            navigator.clipboard.writeText(url);
+          }}
+          className="absolute top-3 left-3 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-y-2 group-hover:translate-y-0 shadow-lg hover:scale-110"
+          title="Copy image URL"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+        </button>
+      )}
+
+      {/* Image info overlay */}
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <p className="text-white text-sm font-medium truncate">
+          Image {id}
+        </p>
+      </div>
     </div>
   );
 };
@@ -84,41 +200,42 @@ function App() {
   const handleDownloadImage = async (imageUrl, imageId) => {
     try {
       console.log("Downloading from:", imageUrl);
-      
+
       // Show loading state
       setToast({ message: 'Downloading image...', type: 'success' });
-      
+
       // Create the proxy URL
       const proxyUrl = `${NGROK_API}/proxy-image?url=${encodeURIComponent(imageUrl)}`;
       console.log("Using proxy URL:", proxyUrl);
-      
+
       // Fetch the image data from the proxy
       const response = await fetch(proxyUrl, {
         mode: 'cors',
         headers: {
           'Accept': 'image/*',
+          'ngrok-skip-browser-warning': 'true',
         }
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       // Get the image data as blob
       const blob = await response.blob();
       console.log("Image blob size:", blob.size);
-      
+
       // Create a download link with the blob
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = `instagram-image-${imageId}.jpg`;
-      
+
       // Trigger download
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       // Clean up
       window.URL.revokeObjectURL(url);
 
@@ -126,7 +243,7 @@ function App() {
       console.log("Download completed successfully");
     } catch (err) {
       console.error("Download error:", err);
-      
+
       // Fallback: try opening in new tab
       try {
         const proxyUrl = `${NGROK_API}/proxy-image?url=${encodeURIComponent(imageUrl)}`;
@@ -142,26 +259,26 @@ function App() {
   const handleDirectDownload = async (imageUrl, imageId) => {
     try {
       console.log("Attempting direct download from:", imageUrl);
-      
+
       // Method 1: Try to create a download link with proper headers
       const link = document.createElement('a');
       link.href = imageUrl;
       link.download = `instagram-image-${imageId}.jpg`;
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
-      
+
       // Add Instagram referrer to help with access
       link.setAttribute('referrerpolicy', 'no-referrer');
-      
+
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       setToast({ message: 'Download link created! Check your downloads folder.', type: 'success' });
       console.log("Direct download initiated");
     } catch (err) {
       console.error("Direct download error:", err);
-      
+
       // Method 2: Open in new tab as last resort
       try {
         window.open(imageUrl, '_blank');
@@ -175,7 +292,7 @@ function App() {
 
   const handleDownloadAll = async () => {
     if (images.length === 0) return;
-    
+
     setDownloadingAll(true);
     try {
       for (let i = 0; i < images.length; i++) {
@@ -195,20 +312,6 @@ function App() {
     }
   };
 
-  const handleImageLoad = (imageId) => {
-    console.log(`Image ${imageId} loaded successfully`);
-    setImages(prev => prev.map(img => 
-      img.id === imageId ? { ...img, loading: false, error: false } : img
-    ));
-  };
-
-  const handleImageError = (imageId) => {
-    console.log(`Image ${imageId} failed to load`);
-    setImages(prev => prev.map(img => 
-      img.id === imageId ? { ...img, loading: false, error: true } : img
-    ));
-  };
-
   const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
       handleDownloadImages();
@@ -219,10 +322,10 @@ function App() {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50">
       {/* Toast notifications */}
       {toast && (
-        <Toast 
-          message={toast.message} 
-          type={toast.type} 
-          onClose={() => setToast(null)} 
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
         />
       )}
 
@@ -258,7 +361,7 @@ function App() {
                 disabled={loading}
               />
             </div>
-            
+
             <button
               onClick={handleDownloadImages}
               disabled={loading}
@@ -305,108 +408,32 @@ function App() {
             <h2 className="text-2xl font-bold text-gray-800 mb-8 text-center">
               Found {images.length} image{images.length !== 1 ? 's' : ''}
             </h2>
-            
+
             {/* Debug section - show raw URLs */}
             <div className="mb-6 p-4 bg-gray-100 rounded-lg">
               <h3 className="font-semibold mb-2">Debug Info:</h3>
               {images.map((image, index) => (
                 <div key={image.id} className="text-sm mb-2">
                   <strong>Image {image.id}:</strong> {image.url.substring(0, 100)}...
-                  <br />
-                  <strong>Status:</strong> {image.loading ? 'Loading' : image.error ? 'Error' : 'Loaded'}
                 </div>
               ))}
             </div>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {images.map((image) => (
-                <div
+                <InstagramImage
                   key={image.id}
-                  className="relative group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2"
-                >
-                  <div className="aspect-square overflow-hidden bg-gray-100">
-                    {image.loading && (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Loader className="animate-spin text-blue-500" size={32} />
-                      </div>
-                    )}
-                    
-                    {image.error && (
-                      <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-500">
-                        <div className="text-center p-4">
-                          <AlertCircle size={48} />
-                          <p className="mt-2 text-sm font-medium">Image not accessible</p>
-                          <p className="text-xs mt-1">Try downloading directly</p>
-                          <button
-                            onClick={() => handleDownloadImage(image.url, image.id)}
-                            className="mt-3 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs"
-                          >
-                            Download
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    
-                    <img
-                      src={image.url}
-                      alt={image.alt}
-                      className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${
-                        image.error ? 'hidden' : ''
-                      }`}
-                      loading="lazy"
-                      onLoad={() => handleImageLoad(image.id)}
-                      onError={() => handleImageError(image.id)}
-                      style={{ display: image.loading ? 'none' : 'block' }}
-                      onLoadStart={() => console.log(`Image ${image.id} starting to load:`, image.url)}
-                      crossOrigin="anonymous"
-                      referrerPolicy="no-referrer"
-                    />
-                  </div>
-                  
-                  {/* Download Button Overlay */}
-                  <button
-                    onClick={() => handleDownloadImage(image.url, image.id)}
-                    disabled={image.error}
-                    className={`absolute top-3 right-3 bg-black/70 hover:bg-black/90 text-white p-3 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-y-2 group-hover:translate-y-0 shadow-lg hover:scale-110 ${
-                      image.error ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                    title={image.error ? "Cannot download - image failed to load" : "Download image"}
-                  >
-                    <Download size={20} />
-                  </button>
-                  
-                  {/* Copy URL Button for failed images */}
-                  {image.error && (
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(image.url);
-                        setToast({ message: 'Image URL copied to clipboard!', type: 'success' });
-                      }}
-                      className="absolute top-3 left-3 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-y-2 group-hover:translate-y-0 shadow-lg hover:scale-110"
-                      title="Copy image URL"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                      </svg>
-                    </button>
-                  )}
-                  
-                  {/* Image info overlay */}
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <p className="text-white text-sm font-medium truncate">
-                      Image {image.id}
-                    </p>
-                  </div>
-                </div>
+                  {...image}
+                  onDownload={handleDownloadImage}
+                />
               ))}
             </div>
-            
+
             {/* Download All Button */}
             <div className="text-center mt-10">
               <button
                 onClick={handleDownloadAll}
-                disabled={downloadingAll || images.some(img => img.error)}
+                disabled={downloadingAll}
                 className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-4 px-8 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed flex items-center gap-3 mx-auto shadow-lg"
               >
                 {downloadingAll ? (
