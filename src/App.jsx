@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Download, Instagram, Loader, AlertCircle, CheckCircle } from 'lucide-react';
 
-const NGROK_API = "http://localhost:8000"; // Use localhost for local development
+const NGROK_API = "https://image-saver-h999.onrender.com"; // Use localhost for local development
 // const NGROK_API = "https://c54e634b3c56.ngrok-free.app"; // Uncomment for ngrok usage
 
 // Fetch Instagram images from backend
@@ -409,15 +409,7 @@ function App() {
               Found {images.length} image{images.length !== 1 ? 's' : ''}
             </h2>
 
-            {/* Debug section - show raw URLs */}
-            <div className="mb-6 p-4 bg-gray-100 rounded-lg">
-              <h3 className="font-semibold mb-2">Debug Info:</h3>
-              {images.map((image, index) => (
-                <div key={image.id} className="text-sm mb-2">
-                  <strong>Image {image.id}:</strong> {image.url.substring(0, 100)}...
-                </div>
-              ))}
-            </div>
+
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {images.map((image) => (

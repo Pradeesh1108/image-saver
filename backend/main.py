@@ -12,12 +12,8 @@ app = FastAPI()
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "https://ed6388f41cc0.ngrok-free.app",
-    "https://d2dc5229327b.ngrok-free.app",
-    "https://bf8943571d8a.ngrok-free.app",
-    "https://3818111a33c3.ngrok-free.app",
-    "https://b173e7044154.ngrok-free.app ",
-    "https://3dc3e97f5453.ngrok-free.app",
+    "image-saver-peach.vercel.app",
+    "https://image-saver-peach.vercel.app",
 
 ]
 
