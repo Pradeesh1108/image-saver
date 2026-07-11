@@ -2,14 +2,11 @@
 name = "backend"
 version = "0.1.0"
 description = "Instagram Image Downloader - FastAPI backend"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
-    "browser-cookie3>=0.20.1",
     "fastapi[standard]>=0.139.0",
-    "httpx>=0.28.1",
-    "instaloader>=4.15.2",
     "pydantic>=2.13.4",
-    "requests>=2.34.2",
+    "httpx>=0.28.1",
     "uvicorn>=0.51.0",
 ]
 
