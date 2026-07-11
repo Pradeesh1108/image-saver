@@ -2,7 +2,7 @@ from fastapi import FastAPI, Response
 from pydantic import BaseModel
 from scraper import extract_instagram_media
 from fastapi.middleware.cors import CORSMiddleware
-import requests
+
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi import Query
 import io

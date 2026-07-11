@@ -1,5 +1,5 @@
 import os
-import requests
+import httpx
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -20,7 +20,7 @@ def extract_instagram_media(url: str):
     }
 
     print(f"Calling user-provided RapidAPI for URL: {url}")
-    response = requests.get(api_url, headers=headers, params=querystring)
+    response = httpx.get(api_url, headers=headers, params=querystring)
     
     if response.status_code != 200:
         raise ValueError(f"API Error ({response.status_code}): {response.text}")
