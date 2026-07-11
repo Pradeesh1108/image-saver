@@ -18,23 +18,29 @@ A modern, responsive web application built with React that allows users to downl
 - **Build Tool**: Vite 5.4.2
 - **Styling**: Tailwind CSS 3.4.1
 - **Icons**: Lucide React
+- **Backend**: FastAPI + Uvicorn
+- **Scraper**: Instaloader
+- **Python Package Manager**: uv
 - **Development**: ESLint, PostCSS, Autoprefixer
 
 ## 📁 Project Structure
 
 ```
-picSaver/
+image-saver/
 ├── src/
-│   ├── App.jsx          # Main application component
-│   ├── main.jsx         # React entry point
-│   └── index.css        # Global styles and Tailwind imports
-├── public/
-│   └── index.html       # HTML template
-├── package.json          # Dependencies and scripts
-├── vite.config.js       # Vite configuration
-├── tailwind.config.js   # Tailwind CSS configuration
-├── postcss.config.js    # PostCSS configuration
-└── eslint.config.js     # ESLint configuration
+│   ├── App.jsx              # Main application component
+│   ├── main.jsx             # React entry point
+│   └── index.css            # Global styles and Tailwind imports
+├── backend/
+│   ├── main.py              # FastAPI server
+│   ├── scraper.py           # Instagram scraper (instaloader)
+│   ├── pyproject.toml       # Python dependencies (managed by uv)
+│   └── uv.lock              # Lockfile for reproducible installs
+├── package.json             # Frontend dependencies and scripts
+├── vite.config.js           # Vite configuration
+├── tailwind.config.js       # Tailwind CSS configuration
+├── postcss.config.js        # PostCSS configuration
+└── eslint.config.js         # ESLint configuration
 ```
 
 ## 🛠️ Installation
@@ -45,17 +51,30 @@ picSaver/
    cd image-saver
    ```
 
-2. **Install dependencies**
+2. **Install frontend dependencies**
    ```bash
    npm install
    ```
 
-3. **Start development server**
+3. **Install backend dependencies (using uv)**
+   ```bash
+   cd backend
+   uv sync
+   cd ..
+   ```
+
+4. **Start the backend server**
+   ```bash
+   cd backend
+   uv run uvicorn main:app --reload
+   ```
+
+5. **Start the frontend dev server** (in a separate terminal)
    ```bash
    npm run dev
    ```
 
-4. **Open your browser**
+6. **Open your browser**
    Navigate to `http://localhost:5173` (or the port shown in your terminal)
 
 ## 📱 Usage

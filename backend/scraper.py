@@ -1,33 +1,49 @@
-import instaloader
-import re
+import os
+import requests
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 def extract_instagram_media(url: str):
-    L = instaloader.Instaloader(
-        download_pictures=False,
-        download_videos=False,
-        download_video_thumbnails=False,
-        save_metadata=False
-    )
+    api_key = os.environ.get("RAPIDAPI_KEY")
+    if not api_key:
+        raise ValueError("RAPIDAPI_KEY is missing! Please create a .env file in the backend folder with your RapidAPI key.")
 
-    # Match both /p/ and /reel/ URLs
-    shortcode_match = re.search(r"/(p|reel)/([A-Za-z0-9_-]+)/?", url)
-    if not shortcode_match:
-        raise ValueError("Invalid Instagram URL format")
+    # Using the specific API you provided
+    api_url = "https://instagram-downloader-download-instagram-stories-videos4.p.rapidapi.com/convert"
+    querystring = {"url": url}
+    
+    headers = {
+        "x-rapidapi-key": api_key,
+        "x-rapidapi-host": "instagram-downloader-download-instagram-stories-videos4.p.rapidapi.com"
+    }
 
-    shortcode = shortcode_match.group(2)
-    post = instaloader.Post.from_shortcode(L.context, shortcode)
-
+    print(f"Calling user-provided RapidAPI for URL: {url}")
+    response = requests.get(api_url, headers=headers, params=querystring)
+    
+    if response.status_code != 200:
+        raise ValueError(f"API Error ({response.status_code}): {response.text}")
+        
+    data = response.json()
     media_urls = []
+    
+    try:
+        # The API can return either a list directly, or a dict with a 'media' key
+        items = data.get('media', []) if isinstance(data, dict) else data
+        
+        if isinstance(items, list):
+            for item in items:
+                if 'url' in item:
+                    media_urls.append(item['url'])
+        else:
+            raise ValueError("Expected a list from the API.")
+                
+    except Exception as e:
+        print(f"Raw API Response: {data}")
+        raise ValueError(f"Failed to parse the API response. Error: {e}")
 
-    if post.typename == 'GraphSidecar':
-        # Carousel: multiple images/videos
-        for node in post.get_sidecar_nodes():
-            if node.is_video:
-                media_urls.append(node.video_url)
-            else:
-                media_urls.append(node.display_url)
-    else:
-        # Single image or video
-        media_urls.append(post.video_url if post.is_video else post.url)
+    if not media_urls:
+        raise ValueError("No media found in the post. Check if the URL is correct and public.")
 
     return media_urls

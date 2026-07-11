@@ -41,6 +41,9 @@ async def download_media(request: URLRequest):
         print(f"Error extracting media: {str(e)}")
         return {"success": False, "error": str(e)}
 
+import httpx
+import asyncio
+
 @app.get("/proxy-image")
 async def proxy_image(url: str = Query(...)):
     try:
@@ -66,50 +69,47 @@ async def proxy_image(url: str = Query(...)):
         
         print(f"Fetching image from: {url}")
         
-        # Add a small delay to avoid rate limiting
-        import time
-        time.sleep(0.1)
+        # Add a small async delay to avoid rate limiting without blocking the server
+        await asyncio.sleep(0.1)
         
-        resp = requests.get(url, headers=headers, allow_redirects=True, timeout=20)
-        resp.raise_for_status()
+        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+            resp = await client.get(url, headers=headers)
+            resp.raise_for_status()
 
-        content_type = resp.headers.get("Content-Type", "")
-        print(f"Fetched content-type: {content_type}")
-        print(f"Response size: {len(resp.content)} bytes")
+            content_type = resp.headers.get("Content-Type", "")
+            print(f"Fetched content-type: {content_type}")
+            print(f"Response size: {len(resp.content)} bytes")
 
-        # Check if we got HTML instead of an image
-        if "text/html" in content_type.lower():
-            print("Returned HTML instead of image. Likely blocked by Instagram.")
-            # Try to extract error message from HTML
-            html_content = resp.text[:500]  # First 500 chars
-            print(f"HTML content preview: {html_content}")
-            return JSONResponse(
-                content={"error": "Instagram blocked image access. The image URL may be expired or restricted."},
-                status_code=403
+            # Check if we got HTML instead of an image
+            if "text/html" in content_type.lower():
+                print("Returned HTML instead of image. Likely blocked by Instagram.")
+                return JSONResponse(
+                    content={"error": "Instagram blocked image access. The image URL may be expired or restricted."},
+                    status_code=403
+                )
+
+            # Check if content is too small (likely an error page)
+            if len(resp.content) < 5000:
+                print("Response too small, likely an error page")
+                return JSONResponse(
+                    content={"error": "Image response too small, likely blocked or expired."},
+                    status_code=403
+                )
+
+            return Response(
+                content=resp.content,
+                media_type=content_type,
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Cache-Control": "public, max-age=3600",
+                    "Content-Length": str(len(resp.content))
+                }
             )
 
-        # Check if content is too small (likely an error page)
-        if len(resp.content) < 5000:
-            print("Response too small, likely an error page")
-            return JSONResponse(
-                content={"error": "Image response too small, likely blocked or expired."},
-                status_code=403
-            )
-
-        return Response(
-            content=resp.content,
-            media_type=content_type,
-            headers={
-                "Access-Control-Allow-Origin": "*",
-                "Cache-Control": "public, max-age=3600",
-                "Content-Length": str(len(resp.content))
-            }
-        )
-
-    except requests.exceptions.Timeout:
+    except httpx.TimeoutException:
         print("Request timeout")
         return JSONResponse(content={"error": "Request timeout"}, status_code=408)
-    except requests.exceptions.RequestException as e:
+    except httpx.RequestError as e:
         print(f"Request error: {e}")
         return JSONResponse(content={"error": f"Request failed: {str(e)}"}, status_code=500)
     except Exception as e:
