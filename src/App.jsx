@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Download, Instagram, Loader, AlertCircle, CheckCircle } from 'lucide-react';
 
-const NGROK_API = "http://localhost:8000"; // Local development endpoint
-// const NGROK_API = "https://image-saver-h999.onrender.com"; // Production
-// const NGROK_API = "https://c54e634b3c56.ngrok-free.app"; // ngrok usage
-
+// Dynamically use the deployed backend URL if available, otherwise fallback to local development
+const NGROK_API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 // Fetch Instagram images from backend
 const fetchInstagramImages = async (postUrl) => {
   const response = await fetch(`${NGROK_API}/download`, {

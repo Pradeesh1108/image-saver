@@ -8,20 +8,12 @@ from fastapi import Query
 import io
 app = FastAPI()
 
-
-origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "image-saver-peach.vercel.app",
-    "https://image-saver-peach.vercel.app",
-
-]
-
 class URLRequest(BaseModel):
     url: str
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # frontend origin here later
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
